@@ -29,11 +29,11 @@ const sendToAll = (clients, type, { id, name: username }) => {
 wss.on("connection", ws => {
   ws.on("message", msg => {
     let data;
-    console.log("Message: %s from client", msg);
+    console.log("Message: %s", msg);
     try {
       data = JSON.parse(msg);
     } catch (error) {
-      console.log(`Error: ${error}`);
+      alert('Invalid JSON');
       data = {};
     }
     switch (data.type) {
@@ -64,6 +64,7 @@ wss.on("connection", ws => {
       case "offerConnect":
         const objectConnection = users[data.name];
         if (!!objectConnection) {
+          ws.otherName = data.name;
           sendTo(objectConnection, {
             type: "offerConnect",
             offerConnect: data.offerConnect,
@@ -80,6 +81,7 @@ wss.on("connection", ws => {
       case "answerConnect":
         const objectAnswer = users[data.name];
         if (!!objectAnswer) {
+          ws.otherName = data.name;
           sendTo(objectAnswer, {
             type: "answerConnect",
             answerConnect: data.answerConnect,
@@ -108,7 +110,13 @@ wss.on("connection", ws => {
         break;
 
       case "leave":
-        sendToAll(users, "leave", ws);
+        const recipient = users[data.name];
+        if (!!recipient) {
+          recipient.otherName = null;
+          sendTo(recipient, {
+            type: "leave"
+          });
+        }
         break;
 
       default:
@@ -121,6 +129,13 @@ wss.on("connection", ws => {
   });
   ws.on("close", ws => {
     delete users[ws.name];
+    if (ws.otherName) {
+      console.log("Disconnecting from ", ws.otherName);
+      const recipient = users[ws.otherName];
+      if (!!recipient) {
+        recipient.otherName = null;
+      }
+    }
     sendToAll(users, "leave", ws);
   });
   ws.send(
