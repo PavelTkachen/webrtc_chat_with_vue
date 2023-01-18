@@ -128,31 +128,44 @@ export default {
       store.connection.addIceCandidate(new RTCIceCandidate(candidate));
     },
     handleDataChannelMessageReceived({ data }: { data: any }) {
+      console.log('8')
       const message = JSON.parse(data);
       const { name: user } = message;
       let userMessages = this.messages[user];
       if (userMessages) {
+        console.log('9')
         userMessages = [...userMessages, message];
         let newMessages = { ...this.messages, [user]: userMessages };
         this.messages = newMessages;
       } else {
+        console.log('10')
+
         let newMessages = { ...this.messages, [user]: [message] };
         this.messages = newMessages;
       }
     },
     handleConnection(username: string) {
+      console.log('3')
       if (store.connection) {
+        console.log('4')
+
         let dataChannel = store.connection.createDataChannel("messenger", {
           reliable: false
         });
+        console.log('dataChannel', dataChannel);
         if (dataChannel) {
+          console.log('5')
           dataChannel.onopen = function () {
+            console.log('7')
             var readyState = dataChannel.readyState;
+            console.log('readyState', readyState);
+
             if (readyState == "open" && dataChannel) {
-              dataChannel.send(JSON.stringify("Hello"));
+              this.send(JSON.stringify("Hello"));
             }
           };
           dataChannel.onerror = (error: any) => {
+            console.log('6', error)
             notification.error({ message: `Ошибка выполнения ${error}` })
           }
           dataChannel.onmessage = this.handleDataChannelMessageReceived;
@@ -176,11 +189,13 @@ export default {
     },
     toggleConnection(username: string) {
       if (store.connectedUser === username) {
+        console.log('1')
         this.connecting = true;
         this.connectedTo = "";
         store.setConnectedUser("");
         this.connecting = false;
       } else {
+        console.log('2')
         this.connecting = true;
         this.connectedTo = username;
         store.setConnectedUser(username);
