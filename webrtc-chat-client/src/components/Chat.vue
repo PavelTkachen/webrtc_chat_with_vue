@@ -42,7 +42,7 @@ import UserList from './UserList.vue';
 import MessageContainer from './MessageContainer.vue';
 
 const config = {
-  iseServers: [{ url: "stun:stun.1.google.com:19302" }]
+  iseServers: [{ url: "23.21.150.121:3478" }]
 } as RTCConfiguration;
 
 export default {
@@ -86,24 +86,32 @@ export default {
       this.users = this.users.filter(item => item.username !== user.username)
     },
     sendMsg() {
-      const time = format(new Date(), "yyyy-MM-dd HH:mm:ss");
-      let text = { time, message: this.message, name: this.name };
-      let userMessages = this.messages[this.connectedTo];
-      if (this.messages[this.connectedTo]) {
-        userMessages = [...userMessages, text];
-        let newMessages = {
-          ...this.messages,
-          [this.connectedTo]: userMessages
-        };
-        this.messages = newMessages;
-      } else {
-        userMessages = { ...this.messages, [this.connectedTo]: [text] }
-        this.messages = userMessages;
+      try {
+        console.log("store", store);
+        const time = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+        let text = { time, message: this.message, name: this.name };
+        let userMessages = this.messages[this.connectedTo];
+        if (this.messages[this.connectedTo]) {
+          userMessages = [...userMessages, text];
+          let newMessages = {
+            ...this.messages,
+            [this.connectedTo]: userMessages
+          };
+          this.messages = newMessages;
+        } else {
+          userMessages = { ...this.messages, [this.connectedTo]: [text] }
+          this.messages = userMessages;
+        }
+        console.log('store.channel.send', store.channel)
+
+        if (store.channel?.send) {
+          store.channel.send(JSON.stringify(text));
+        }
+        this.message = "";
+      } catch (error) {
+        console.log('ERROR2: ', error)
       }
-      if (store.channel.send) {
-        store.channel.send(JSON.stringify(text));
-      }
-      this.message = "";
+
     },
     onOffer({ offerConnect, name }: { offerConnect: any, name: string }) {
       this.connectedTo = name;
@@ -145,43 +153,48 @@ export default {
       }
     },
     handleConnection(username: string) {
-      console.log('3')
-      if (store.connection) {
-        console.log('4')
+      try {
+        console.log('3')
 
-        let dataChannel = store.connection.createDataChannel("messenger", {
-          reliable: false
-        });
-        console.log('dataChannel', dataChannel);
-        if (dataChannel) {
-          console.log('5')
-          dataChannel.onopen = function () {
-            console.log('7')
-            var readyState = dataChannel.readyState;
-            console.log('readyState', readyState);
+        if (store.connection) {
+          console.log('4')
 
-            if (readyState == "open" && dataChannel) {
-              this.send(JSON.stringify("Hello"));
+          let dataChannel = store.connection.createDataChannel("messenger", {
+            reliable: false
+          });
+          console.log('dataChannel', dataChannel);
+          if (dataChannel) {
+            console.log('5')
+            dataChannel.onopen = function () {
+              console.log('7')
+              var readyState = dataChannel.readyState;
+              console.log('readyState', readyState);
+
+              if (readyState == "open" && dataChannel) {
+                this.send(JSON.stringify("Hello"));
+              }
+            };
+            dataChannel.onerror = (error: any) => {
+              console.log('6', error)
+              notification.error({ message: `Ошибка выполнения ${error}` })
             }
-          };
-          dataChannel.onerror = (error: any) => {
-            console.log('6', error)
-            notification.error({ message: `Ошибка выполнения ${error}` })
+            dataChannel.onmessage = this.handleDataChannelMessageReceived;
+            store.updateChannel(dataChannel);
+            store.connection
+              .createOffer()
+              .then((offer: any) => store.connection.setLocalDescription(offer))
+              .then(() => this.send({
+                type: "offerConnect",
+                offerConnect: store.connection.localDescription,
+                name: username
+              }))
+              .catch((e: any) => {
+                notification.error({ message: `Ошибка выполнения ${e}` })
+              });
           }
-          dataChannel.onmessage = this.handleDataChannelMessageReceived;
-          store.updateChannel(dataChannel);
-          store.connection
-            .createOffer()
-            .then((offer: any) => store.connection.setLocalDescription(offer))
-            .then(() => this.send({
-              type: "offerConnect",
-              offerConnect: store.connection.localDescription,
-              name: username
-            }))
-            .catch((e: any) => {
-              notification.error({ message: `Ошибка выполнения ${e}` })
-            });
         }
+      } catch (error) {
+        console.log("ERROR: ", error)
       }
     },
     send(data: { type: string; name: any; candidate?: any; offerConnect?: any, answerConnect?: any }) {
@@ -239,6 +252,7 @@ export default {
         });
         localConnection.ondatachannel = event => {
           let receiveChannel = event.channel;
+          console.log('receiveChannel', receiveChannel);
           if (receiveChannel) {
             receiveChannel.onopen = () => {
               console.log("Data channel is success open and ready to be userd");
