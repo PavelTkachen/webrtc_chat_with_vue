@@ -57,7 +57,7 @@ export default {
   components: {
     WechatOutlined,
     UserList,
-    MessageContainer
+    MessageContainer,
   },
   data() {
     return {
@@ -67,7 +67,7 @@ export default {
       name: null as any,
       isLogging: false as boolean,
       users: [] as any[],
-      connection: null as any,
+      wsConnection: null as any,
       connectedTo: "" as string,
       connecting: false as boolean,
       messages: {} as any,
@@ -100,7 +100,9 @@ export default {
         userMessages = { ...this.messages, [this.connectedTo]: [text] }
         this.messages = userMessages;
       }
-      store.channel.send(JSON.stringify(text));
+      if (store.channel.send) {
+        store.channel.send(JSON.stringify(text));
+      }
       this.message = "";
     },
     onOffer({ offerConnect, name }: { offerConnect: any, name: string }) {
@@ -140,27 +142,37 @@ export default {
     },
     handleConnection(username: string) {
       if (store.connection) {
-        let dataChannel = store.connection.createDataChannel("messenger");
-        dataChannel.onerror = (error: any) => {
-          notification.error({ message: `Ошибка выполнения ${error}` })
+        let dataChannel = store.connection.createDataChannel("messenger", {
+          reliable: false
+        });
+        if (dataChannel) {
+          dataChannel.onopen = function () {
+            var readyState = dataChannel.readyState;
+            if (readyState == "open" && dataChannel) {
+              dataChannel.send(JSON.stringify("Hello"));
+            }
+          };
+          dataChannel.onerror = (error: any) => {
+            notification.error({ message: `Ошибка выполнения ${error}` })
+          }
+          dataChannel.onmessage = this.handleDataChannelMessageReceived;
+          store.updateChannel(dataChannel);
+          store.connection
+            .createOffer()
+            .then((offer: any) => store.connection.setLocalDescription(offer))
+            .then(() => this.send({
+              type: "offerConnect",
+              offerConnect: store.connection.localDescription,
+              name: username
+            }))
+            .catch((e: any) => {
+              notification.error({ message: `Ошибка выполнения ${e}` })
+            });
         }
-        dataChannel.onmessage = this.handleDataChannelMessageReceived;
-        store.updateChannel(dataChannel);
-        store.connection
-          .createOffer()
-          .then((offer: any) => store.connection.setLocalDescription(offer))
-          .then(() => this.send({
-            type: "offerConnect",
-            offerConnect: store.connection.localDescription,
-            name: username
-          }))
-          .catch((e: any) => {
-            notification.error({ message: `Ошибка выполнения ${e}` })
-          })
       }
     },
     send(data: { type: string; name: any; candidate?: any; offerConnect?: any, answerConnect?: any }) {
-      this.connection.send(JSON.stringify(data));
+      this.wsConnection.send(JSON.stringify(data));
     },
     toggleConnection(username: string) {
       if (store.connectedUser === username) {
@@ -176,8 +188,8 @@ export default {
         this.connecting = false;
       }
     },
-    setConnection(connection: any) {
-      this.connection = connection;
+    setConnection(wsConnection: any) {
+      this.wsConnection = wsConnection;
     },
     setSocketMessages(data: any[]) {
       this.socketMessages = data;
@@ -212,9 +224,11 @@ export default {
         });
         localConnection.ondatachannel = event => {
           let receiveChannel = event.channel;
-          receiveChannel.onopen = () => {
-            console.log("Data channel is success open and ready to be userd");
-            receiveChannel.onmessage = this.handleDataChannelMessageReceived;
+          if (receiveChannel) {
+            receiveChannel.onopen = () => {
+              console.log("Data channel is success open and ready to be userd");
+              receiveChannel.onmessage = this.handleDataChannelMessageReceived;
+            }
             store.updateChannel(receiveChannel);
           }
         };
@@ -226,15 +240,15 @@ export default {
   },
   created() {
     try {
-      const connection = new WebSocket("ws://3a78-188-168-246-63.eu.ngrok.io");
+      const wsConnection = new WebSocket("ws://134.0.113.112:9000");
 
-      connection.onmessage = (event) => {
+      wsConnection.onmessage = (event) => {
         const data = JSON.parse(event.data);
         this.setSocketMessages([...this.socketMessages, data]);
-        this.setConnection(connection);
+        this.setConnection(wsConnection);
       };
-      connection.onclose = () => {
-        connection.close();
+      wsConnection.onclose = () => {
+        wsConnection.close();
       };
     } catch (error) {
       notification.error({ message: `Ошибка: ${error}` });
