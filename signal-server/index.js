@@ -61,13 +61,13 @@ wss.on("connection", ws => {
         }
         break;
 
-      case "offerConnect":
+      case "offer":
         const objectConnection = users[data.name];
         if (!!objectConnection) {
           ws.otherName = data.name;
           sendTo(objectConnection, {
-            type: "offerConnect",
-            offerConnect: data.offerConnect,
+            type: "offer",
+            offer: data.offer,
             name: ws.name
           });
         } else {
@@ -78,13 +78,13 @@ wss.on("connection", ws => {
         }
         break;
 
-      case "answerConnect":
+      case "answer":
         const objectAnswer = users[data.name];
         if (!!objectAnswer) {
           ws.otherName = data.name;
           sendTo(objectAnswer, {
-            type: "answerConnect",
-            answerConnect: data.answerConnect,
+            type: "answer",
+            answer: data.answer,
           });
         } else {
           sendTo(ws, {

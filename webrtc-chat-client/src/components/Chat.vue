@@ -113,24 +113,24 @@ export default {
       }
 
     },
-    onOffer({ offerConnect, name }: { offerConnect: any, name: string }) {
+    onOffer({ offer, name }: { offer: any, name: string }) {
       this.connectedTo = name;
       store.setConnectedUser(name);
       store.connection
-        .setRemoteDescription(new RTCSessionDescription(offerConnect))
+        .setRemoteDescription(new RTCSessionDescription(offer))
         .then(() => store.connection.createAnswer())
-        .then((answerConnect: any) => store.connection.setLocalDescription(answerConnect))
+        .then((answer: any) => store.connection.setLocalDescription(answer))
         .then(() => this.send({
-          type: "answerConnect",
-          answerConnect: store.connection.localDescription,
+          type: "answer",
+          answer: store.connection.localDescription,
           name
         }))
         .catch((error: any) => {
           notification.error({ message: `Ошибка выполнения ${error}` });
         })
     },
-    onAnswer({ answerConnect }: { answerConnect: any }) {
-      store.connection.setRemoteDescription(new RTCSessionDescription(answerConnect));
+    onAnswer({ answer }: { answer: any }) {
+      store.connection.setRemoteDescription(new RTCSessionDescription(answer));
     },
     onCandidate({ candidate }: { candidate: any }) {
       if (candidate) {
@@ -186,8 +186,8 @@ export default {
               .createOffer()
               .then((offer: any) => store.connection.setLocalDescription(offer))
               .then(() => this.send({
-                type: "offerConnect",
-                offerConnect: store.connection.localDescription,
+                type: "offer",
+                offer: store.connection.localDescription,
                 name: username
               }))
               .catch((e: any) => {
@@ -199,7 +199,7 @@ export default {
         console.log("ERROR: ", error)
       }
     },
-    send(data: { type: string; name: any; candidate?: any; offerConnect?: any, answerConnect?: any }) {
+    send(data: { type: string; name: any; candidate?: any; offer?: any, answer?: any }) {
       this.wsConnection.send(JSON.stringify(data));
     },
     toggleConnection(username: string) {
@@ -304,10 +304,10 @@ export default {
             case "removeUser":
               this.removeUser(lastMsg);
               break;
-            case "offerConnect":
+            case "offer":
               this.onOffer(lastMsg);
               break;
-            case "answerConnect":
+            case "answer":
               this.onAnswer(lastMsg);
               break;
             case "candidate":
