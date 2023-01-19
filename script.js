@@ -10,7 +10,7 @@ console: false
 let result = "[";
 
 readInterface.on('line', function(line) {
-result += JSON.stringify({ url: `${line}` }) + ',' + os.EOL;
+result += JSON.stringify({ urls: `${line}` }) + ',' + os.EOL;
 });
 
 readInterface.on('close', ()=>{
