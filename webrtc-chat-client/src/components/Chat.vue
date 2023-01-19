@@ -243,6 +243,7 @@ export default {
         this.users = loggedIn;
         let localConnection = new RTCPeerConnection(config);
         localConnection.onicecandidate = (({ candidate }) => {
+          console.log('candidate', candidate)
           let connectedTo = store.connectedUser;
           if (candidate && !!connectedTo) {
             this.send({
