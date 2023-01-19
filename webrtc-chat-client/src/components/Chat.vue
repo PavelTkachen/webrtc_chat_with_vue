@@ -42,7 +42,7 @@ import UserList from './UserList.vue';
 import MessageContainer from './MessageContainer.vue';
 
 const config = {
-  iseServers: [{ url: "23.21.150.121:3478" }]
+  iseServers: [{ url: "stun:stun.1.google.com:19302" }]
 } as RTCConfiguration;
 
 export default {
@@ -133,7 +133,9 @@ export default {
       store.connection.setRemoteDescription(new RTCSessionDescription(answerConnect));
     },
     onCandidate({ candidate }: { candidate: any }) {
-      store.connection.addIceCandidate(new RTCIceCandidate(candidate));
+      if (candidate) {
+        store.connection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
     },
     handleDataChannelMessageReceived({ data }: { data: any }) {
       console.log('8')
