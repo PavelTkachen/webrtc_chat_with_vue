@@ -40,10 +40,28 @@ import { reactive } from 'vue';
 import { store } from '../store';
 import UserList from './UserList.vue';
 import MessageContainer from './MessageContainer.vue';
-import { STUN_SERVERS } from '../constants/servers';
 
 const config = {
-  iseServers: STUN_SERVERS
+  iceServers: [
+    {
+      urls: "stun:relay.metered.ca:80",
+    },
+    {
+      urls: "turn:relay.metered.ca:80",
+      username: USERNAME,
+      credential: CREDENTIAL,
+    },
+    {
+      urls: "turn:relay.metered.ca:443",
+      username: USERNAME,
+      credential: CREDENTIAL,
+    },
+    {
+      urls: "turn:relay.metered.ca:443?transport=tcp",
+      username: USERNAME,
+      credential: CREDENTIAL,
+    },
+  ],
 } as RTCConfiguration;
 
 export default {
@@ -88,7 +106,6 @@ export default {
     },
     sendMsg() {
       try {
-        console.log("store", store);
         const time = format(new Date(), "yyyy-MM-dd HH:mm:ss");
         let text = { time, message: this.message, name: this.name };
         let userMessages = this.messages[this.connectedTo];
@@ -103,8 +120,6 @@ export default {
           userMessages = { ...this.messages, [this.connectedTo]: [text] }
           this.messages = userMessages;
         }
-        console.log('store.channel.send', store.channel)
-
         if (store.channel?.send) {
           store.channel.send(JSON.stringify(text));
         }
@@ -139,46 +154,30 @@ export default {
       }
     },
     handleDataChannelMessageReceived({ data }: { data: any }) {
-      console.log('8')
       const message = JSON.parse(data);
       const { name: user } = message;
       let userMessages = this.messages[user];
       if (userMessages) {
-        console.log('9')
         userMessages = [...userMessages, message];
         let newMessages = { ...this.messages, [user]: userMessages };
         this.messages = newMessages;
       } else {
-        console.log('10')
-
         let newMessages = { ...this.messages, [user]: [message] };
         this.messages = newMessages;
       }
     },
     handleConnection(username: string) {
       try {
-        console.log('3')
-
         if (store.connection) {
-          console.log('4')
-
-          let dataChannel = store.connection.createDataChannel("messenger", {
-            reliable: false
-          });
-          console.log('dataChannel', dataChannel);
+          let dataChannel = store.connection.createDataChannel("messenger");
           if (dataChannel) {
-            console.log('5')
             dataChannel.onopen = function () {
-              console.log('7')
               var readyState = dataChannel.readyState;
-              console.log('readyState', readyState);
-
               if (readyState == "open" && dataChannel) {
                 this.send(JSON.stringify("Hello"));
               }
             };
             dataChannel.onerror = (error: any) => {
-              console.log('6', error)
               notification.error({ message: `Ошибка выполнения ${error}` })
             }
             dataChannel.onmessage = this.handleDataChannelMessageReceived;
@@ -205,13 +204,11 @@ export default {
     },
     toggleConnection(username: string) {
       if (store.connectedUser === username) {
-        console.log('1')
         this.connecting = true;
         this.connectedTo = "";
         store.setConnectedUser("");
         this.connecting = false;
       } else {
-        console.log('2')
         this.connecting = true;
         this.connectedTo = username;
         store.setConnectedUser(username);
@@ -244,7 +241,6 @@ export default {
         this.users = loggedIn;
         let localConnection = new RTCPeerConnection(config);
         localConnection.onicecandidate = (({ candidate }) => {
-          console.log('candidate', candidate)
           let connectedTo = store.connectedUser;
           if (candidate && !!connectedTo) {
             this.send({
@@ -256,7 +252,6 @@ export default {
         });
         localConnection.ondatachannel = event => {
           let receiveChannel = event.channel;
-          console.log('receiveChannel', receiveChannel);
           if (receiveChannel) {
             receiveChannel.onopen = () => {
               console.log("Data channel is success open and ready to be userd");
