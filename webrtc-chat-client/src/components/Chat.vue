@@ -40,6 +40,7 @@ import { reactive } from 'vue';
 import { store } from '../store';
 import UserList from './UserList.vue';
 import MessageContainer from './MessageContainer.vue';
+import { CREDENTIAL, USERNAME } from '../../turn_config';
 
 const config = {
   iceServers: [
