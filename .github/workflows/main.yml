@@ -1,0 +1,41 @@
+name: CI
+on:
+   # События, которые запускают jobs
+    push:
+      branches: [ "master" ]
+    pull_request:
+      branches: [ "master" ]
+
+# jobs запускаются параллельно, если не указана последовательность
+jobs:
+# Название job вы можете назвать как угодно
+    deploy:
+      # Операционная система в виртуальной машине, в которой запускаются процессы
+      runs-on: ubuntu-latest
+        # Шаги
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Run command on remote server
+        uses: D3rHase/ssh-command-action@v0.2.2
+        with:
+          host: ${{secrets.HOST_NAME}}
+          user: ${{secrets.USERNAME}}
+          private_key: ${{secrets.PRIVATE_SSH_KEY}}
+          command: |
+            cd ${{secrets.FOLDER_NAME}};
+            git checkout master;
+            git pull origin master;
+            cd ${{secrets.CLIENT_FOLDER}}
+            docker stop $(docker ps -a -q)
+            docker rm $(docker ps -a -q)
+            docker build -t ${{secrets.FOLDER_NAME}} .
+            docker run -it -d -p ${{secrets.APP_PORT}} ${{secrets.FOLDER_NAME}}
+            cd ..
+            cd ${{secrets.SERVER_FOLDER}}
+            npm install
+            npm start
+            
+            
+            
+          
