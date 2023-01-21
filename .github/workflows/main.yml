@@ -23,7 +23,6 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           script: |
-            git clone ${{secrets.REPO_NAME}}
             cd ${{secrets.FOLDER_NAME}};
             git checkout master;
             git pull origin master;
