@@ -17,13 +17,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Run command on remote server
-        uses: D3rHase/ssh-command-action@v0.2.2
+        uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{secrets.HOST_NAME}}
-          user: ${{secrets.USERNAME}}
-          private_key: ${{secrets.PRIVATE_SSH_KEY}}
-          host_fingerprint: ${{secrets.HOST_FINGERPRINT}}
-          command: |
+          username: ${{secrets.USERNAME}}
+          key: ${{secrets.PRIVATE_SSH_KEY}}
+          script: |
             cd ${{secrets.FOLDER_NAME}};
             git checkout master;
             git pull origin master;
