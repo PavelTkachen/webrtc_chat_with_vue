@@ -20,8 +20,8 @@ jobs:
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{secrets.HOST_NAME}}
-          username: ${{secrets.USERNAME}}
-          key: ${{secrets.PRIVATE_SSH_KEY}}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
           script: |
             cd ${{secrets.FOLDER_NAME}};
             git checkout master;
