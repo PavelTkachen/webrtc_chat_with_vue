@@ -17,9 +17,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Run command on remote server
-        uses: webfactory/ssh-agent@v0.7.0
+        uses: D3rHase/ssh-command-action@v0.2.2
         with:
-          ssh-private-key: ${{ secrets.PRIVATE_SSH_KEY }}
+          host: ${{secrets.HOST_NAME}}
+          user: ${{secrets.USERNAME}}
+          private_key: ${{secrets.PRIVATE_SSH_KEY}}
+          host_fingerprint: ${{secrets.HOST_FINGERPRINT}}
           command: |
             cd ${{secrets.FOLDER_NAME}};
             git checkout master;
