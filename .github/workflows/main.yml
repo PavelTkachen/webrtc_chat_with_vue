@@ -27,8 +27,10 @@ jobs:
             git checkout master;
             git pull origin master;
             cd ${{secrets.SERVER_FOLDER}}
+            pm2 stop index.js
+            pm2 delete index.js
             npm install
-            npm start
+            pm2 start index.js
             cd ..
             cd ${{secrets.CLIENT_FOLDER}}
             docker stop $(docker ps -a -q)
