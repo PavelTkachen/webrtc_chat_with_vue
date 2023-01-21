@@ -27,16 +27,12 @@ jobs:
             cd ${{secrets.FOLDER_NAME}};
             git checkout master;
             git pull origin master;
+            cd ${{secrets.SERVER_FOLDER}}
+            npm install
+            npm start
+            cd ..
             cd ${{secrets.CLIENT_FOLDER}}
             docker stop $(docker ps -a -q)
             docker rm $(docker ps -a -q)
             docker build -t ${{secrets.FOLDER_NAME}} .
             docker run -it -d -p ${{secrets.APP_PORT}} ${{secrets.FOLDER_NAME}}
-            cd ..
-            cd ${{secrets.SERVER_FOLDER}}
-            npm install
-            npm start
-            
-            
-            
-          
