@@ -33,7 +33,7 @@ jobs:
             pm2 start index.js
             cd ..
             cd ${{secrets.CLIENT_FOLDER}}
-            echo 'export const USERNAME = ${{TURN_USERNAME}}; export const CREDENTIAL = ${{secrets.TURN_CRED}};' > ${{secrets.TURN_CONFIG_NAME}}
+            echo 'export const USERNAME = ${{secrets.TURN_USERNAME}}; export const CREDENTIAL = ${{secrets.TURN_CRED}};' > ${{secrets.TURN_CONFIG_NAME}}
             docker stop $(docker ps -a -q)
             docker rm $(docker ps -a -q)
             docker build -t ${{secrets.FOLDER_NAME}} .
