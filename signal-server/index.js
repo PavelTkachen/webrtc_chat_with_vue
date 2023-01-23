@@ -78,6 +78,40 @@ wss.on("connection", ws => {
         }
         break;
 
+      case "video-offer":
+        const objectVideoConnection = users[data.name];
+        if (!!objectVideoConnection) {
+          ws.otherName = data.name;
+          sendTo(objectVideoConnection, {
+            type: "video-offer",
+            sdp: data.sdp,
+            name: data.name
+          });
+        } else {
+          sendTo(ws, {
+            type: "error",
+            message: `Пользователь ${data.name} не найден`
+          });
+        }
+        break;
+
+      case "video-answer":
+        const objectVideoAnswerConnection = users[data.name];
+        if (!!objectVideoAnswerConnection) {
+          ws.otherName = data.name;
+          sendTo(objectVideoAnswerConnection, {
+            type: "video-answer",
+            sdp: data.sdp,
+            name: data.name
+          });
+        } else {
+          sendTo(ws, {
+            type: "error",
+            message: `Пользователь ${data.name} не найден`
+          });
+        }
+        break;
+
       case "answer":
         const objectAnswer = users[data.name];
         if (!!objectAnswer) {
