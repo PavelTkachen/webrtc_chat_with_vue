@@ -20,14 +20,14 @@
     <a-typography-body v-else>Текущий пользователь: {{ name }}</a-typography-body>
     <a-row>
       <a-col :span="12">
-        <UserList :connection='connecting' :connectedTo='connectedTo' :toggleConnection='toggleConnection'
+        <UserList :connection='connecting' :connected-to='connectedTo' :toggle-connection='toggleConnection'
           :users='users' />
       </a-col>
       <a-col :span="12">
-        <MessageContainer :messages='messages' :connectedTo='connectedTo' :message='message' :setMessage='setMessage'
-          :sendMsg='sendMsg' :username='name' />
+        <MessageContainer :init-video-chat='initVideoChat' :messages='messages' :connected-to='connectedTo'
+          :message='message' :set-message='setMessage' :sendMsg='sendMsg' :username='name' :is-video='isVideo'
+          :initVideo='initVideoChat' />
       </a-col>
-
     </a-row>
   </div>
 </template>
@@ -40,30 +40,7 @@ import { reactive } from 'vue';
 import { store } from '../store';
 import UserList from './UserList.vue';
 import MessageContainer from './MessageContainer.vue';
-import { CREDENTIAL, USERNAME } from '../../turn_config';
-
-const config = {
-  iceServers: [
-    {
-      urls: "stun:relay.metered.ca:80",
-    },
-    {
-      urls: "turn:relay.metered.ca:80",
-      username: USERNAME,
-      credential: CREDENTIAL,
-    },
-    {
-      urls: "turn:relay.metered.ca:443",
-      username: USERNAME,
-      credential: CREDENTIAL,
-    },
-    {
-      urls: "turn:relay.metered.ca:443?transport=tcp",
-      username: USERNAME,
-      credential: CREDENTIAL,
-    },
-  ],
-} as RTCConfiguration;
+import { config, mediaConstraints } from '../constants/config';
 
 export default {
   setup() {
@@ -90,11 +67,27 @@ export default {
       wsConnection: null as any,
       connectedTo: "" as string,
       connecting: false as boolean,
+      isVideo: false as boolean,
       messages: {} as any,
       message: "" as string,
     };
   },
   methods: {
+    initVideoChat() {
+      this.isVideo = true;
+      navigator.mediaDevices.getUserMedia({ ...mediaConstraints, audio: false })
+        .then((localStream) => {
+          const localVideo: HTMLVideoElement | null = document.getElementById('local_video') as HTMLVideoElement;
+          if (localVideo) {
+            localVideo.srcObject = localStream;
+            localStream.getTracks().forEach(track => store.connection.addTrack(track));
+          }
+        })
+        .catch(e => {
+          throw new Error(`Error video initialize 1: ${e}`);
+        })
+      this.createPeerConnection()
+    },
     setMessage(value: string) {
       this.message = value;
     },
@@ -149,6 +142,10 @@ export default {
     onAnswer({ answer }: { answer: any }) {
       store.connection.setRemoteDescription(new RTCSessionDescription(answer));
     },
+    onVideoAnswer({ sdp }: { sdp: any }) {
+      console.log('answer', sdp)
+      store.connection.setRemoteDescription(new RTCSessionDescription(sdp));
+    },
     onCandidate({ candidate }: { candidate: any }) {
       if (candidate) {
         store.connection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -173,7 +170,7 @@ export default {
           let dataChannel = store.connection.createDataChannel("messenger");
           if (dataChannel) {
             dataChannel.onopen = function () {
-              var readyState = dataChannel.readyState;
+              let readyState = dataChannel.readyState;
               if (readyState == "open" && dataChannel) {
                 this.send(JSON.stringify("Hello"));
               }
@@ -200,7 +197,7 @@ export default {
         console.log("ERROR: ", error)
       }
     },
-    send(data: { type: string; name: any; candidate?: any; offer?: any, answer?: any }) {
+    send(data: { type: string; name: any; candidate?: any; offer?: any, answer?: any, sdp?: any }) {
       this.wsConnection.send(JSON.stringify(data));
     },
     toggleConnection(username: string) {
@@ -240,31 +237,93 @@ export default {
         notification.success({ message: "Вы успешно вошли в чат" });
         this.isLogged = true;
         this.users = loggedIn;
-        let localConnection = new RTCPeerConnection(config);
-        localConnection.onicecandidate = (({ candidate }) => {
-          let connectedTo = store.connectedUser;
-          if (candidate && !!connectedTo) {
-            this.send({
-              name: connectedTo,
-              type: "candidate",
-              candidate
-            })
-          }
-        });
-        localConnection.ondatachannel = event => {
-          let receiveChannel = event.channel;
-          if (receiveChannel) {
-            receiveChannel.onopen = () => {
-              console.log("Data channel is success open and ready to be userd");
-              receiveChannel.onmessage = this.handleDataChannelMessageReceived;
-            }
-            store.updateChannel(receiveChannel);
-          }
-        };
-        store.updateConnection(localConnection);
+        this.createPeerConnection();
       } else {
         notification.error({ message: message });
       }
+    },
+    onVideoOffer(msg: any) {
+      console.log(1)
+      let localStream: any = null;
+
+      // this.createPeerConnection();
+
+      let desc = new RTCSessionDescription(msg.sdp);
+
+      store.connection.setRemoteDescription(desc).then(function () {
+        return navigator.mediaDevices.getUserMedia({...mediaConstraints, audio: false});
+      })
+        .then(function (stream: any) {
+          const localVideo: HTMLVideoElement | null = document.getElementById('local_video') as HTMLVideoElement;
+          if (localVideo) {
+            localStream = stream;
+            localVideo.srcObject = localStream;
+            localStream.getTracks().forEach((track: any) => store.connection.addTrack(track));
+          }
+        })
+        .then(function () {
+          return store.connection.createAnswer();
+        })
+        .then(function (answer: any) {
+          return store.connection.setLocalDescription(answer);
+        })
+        .then(() => {
+          this.send({
+            name: msg.name,
+            type: "video-answer",
+            sdp: store.connection.localDescription
+          });
+        })
+        .catch((e: any) => {
+          throw new Error("Error handle video offer: " + `${e}`);
+        });
+    },
+    createPeerConnection() {
+      let localConnection = new RTCPeerConnection(config);
+      localConnection.onicecandidate = (({ candidate }) => {
+        let connectedTo = store.connectedUser;
+        if (candidate && !!connectedTo) {
+          this.send({
+            name: connectedTo,
+            type: "candidate",
+            candidate
+          })
+        }
+      });
+      localConnection.ondatachannel = event => {
+        let receiveChannel = event.channel;
+        if (receiveChannel) {
+          receiveChannel.onopen = () => {
+            console.log("Data channel is success open and ready to be userd");
+            receiveChannel.onmessage = this.handleDataChannelMessageReceived;
+          }
+          store.updateChannel(receiveChannel);
+        }
+      };
+      localConnection.onnegotiationneeded = () => {
+        store.connection.createOffer()
+          // .then((offer: any) => {
+          //   console.log('offer', offer)
+          //   return store.connection.setLocalDescription(offer);
+          // })
+          .then(() => {
+            this.send({
+              name: this.connectedTo,
+              type: "video-offer",
+              sdp: store.connection.localDescription
+            });
+          })
+          .catch((e: any) => {
+            throw new Error("Error negotiation: " + `${e}`);
+          });
+      };
+      localConnection.ontrack = (event: any) => {
+        const receivedVideo: HTMLVideoElement | null = document.getElementById('received_video') as HTMLVideoElement;
+        if (receivedVideo) {
+          receivedVideo.srcObject = event?.streams?.[0];
+        }
+      };
+      store.updateConnection(localConnection);
     }
   },
   created() {
@@ -306,6 +365,14 @@ export default {
               break;
             case "answer":
               this.onAnswer(lastMsg);
+              break;
+            case "video-offer":
+              console.log('video-offer', lastMsg)
+              this.onVideoOffer(lastMsg);
+              break;
+            case "video-answer":
+              console.log('video-answer', lastMsg)
+              this.onVideoAnswer(lastMsg);
               break;
             case "candidate":
               this.onCandidate(lastMsg);

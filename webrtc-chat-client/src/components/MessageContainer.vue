@@ -25,16 +25,23 @@
           <a-button html-type="submit" type="primary" @click="sendMsg">
             Отправить
           </a-button>
+          <a-button type="primary" @click="initVideo">
+            Видео
+          </a-button>
         </a-form-item>
       </template>
     </a-comment>
+  <a-card v-if='isVideo'>
+    <video id='local_video' autoplay width='320' height='240'></video>
+    <video id='received_video' autoplay width='320' height='240'></video>
+  </a-card>
   </a-card>
 </template>
 <script lang='ts'>
 import { format } from 'date-fns';
 
 export default {
-  props: ['messages', 'connectedTo', 'message', 'setMessage', 'sendMsg', 'username'],
+  props: ['messages', 'connectedTo', 'message', 'setMessage', 'sendMsg', 'username', 'initVideo', 'isVideo'],
   methods: {
     dateFormat: format,
     handleChange(event: any) {
